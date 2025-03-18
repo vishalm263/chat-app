@@ -1,5 +1,7 @@
 import Message from "../models/message.model.js";
 import User from "../models/user.model.js";
+import { v2 as cloudinary } from "cloudinary";
+
 
 export const getUsersForSidebar = async (req, res) => {
     try{
@@ -35,18 +37,31 @@ export const getMessages = async (req, res) => {
 
 export const sendMessage = async (req, res) => {
     try{
-        const {id: userToChatId, content} = req.body;
-        const myId = req.user._id;
+        const {text , image} = req.body;
+        const {id: receiverId} = req.params;
+        const senderId = req.user._id;
 
-        const message = await Message.create({
-            senderId: myId,
-            receiverId: userToChatId,
-            content
-        })
+        let imageUrl;
+        if(image){
+            const uploadedResponse = await cloudinary.uploader.upload(image, {
+                folder: "chat_app_images"
+            })
+            imageUrl = uploadedResponse.secure_url;
+        }
+
+        const message = await Message({
+            senderId,
+            receiverId,
+            text,
+            image: imageUrl
+        }) 
+        await message.save();
+
+        // todo for real time chat using socket.io
+
 
         const populatedMessage = await message.populate("senderId", "username profilePicture");
-
-        res.status(201).json(message);
+            res.status(201).json(populatedMessage);
     }
     catch (error) {
         console.log("Error in sendMessage controller ", error.message);
